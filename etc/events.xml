@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+<!--
+  ~ @copyright   Velou, 2024
+  ~ @package     Velou_DataFeed
+  ~ @author      Duleep Thivanka <duleepthivanka@gamil.com>
+  ~
+  -->
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:framework:Event/etc/events.xsd">
+    <event name="sales_order_place_after">
+        <observer name="velou_order_observer" instance="Velou\DataFeed\Observer\OrderObserver" />
+    </event>
+    <event name="catalog_product_save_after">
+        <observer name="velou_product_observer" instance="Velou\DataFeed\Observer\ProductSaveAfter" />
+    </event>
+    <event name="catalog_product_delete_after_done">
+        <observer name="velou_product_delete_observer" instance="Velou\DataFeed\Observer\ProductDeleteAfter" />
+    </event>
+</config>

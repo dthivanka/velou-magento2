@@ -1,0 +1,19 @@
+<?xml version="1.0"?>
+<!--
+  ~ @copyright   Velou, 2024
+  ~ @package     Velou_DataFeed
+  ~ @author      Duleep Thivanka <duleepthivanka@gamil.com>
+  ~
+  -->
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:framework-message-queue:etc/topology.xsd">
+    <exchange name="magento-db" type="topic" connection="db">
+        <binding id="processAddProductsToQueueBinding"
+                 topic="velou.queue.product.sync"
+                 destinationType="queue"
+                 destination="velou.queue.product.sync"/>
+        <binding id="processAddOrdersToQueueBinding"
+                 topic="velou.queue.order.sync"
+                 destinationType="queue"
+                 destination="velou.queue.order.sync"/>
+    </exchange>
+</config>

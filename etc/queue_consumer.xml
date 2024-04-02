@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<!--
+  ~ @copyright   Velou, 2024
+  ~ @package     Velou_DataFeed
+  ~ @author      Duleep Thivanka <duleepthivanka@gamil.com>
+  ~
+  -->
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:framework-message-queue:etc/consumer.xsd">
+    <consumer name="velou.queue.product.sync"
+              queue="velou.queue.product.sync"
+              connection="db"
+              maxMessages="5000"
+              consumerInstance="Magento\Framework\MessageQueue\Consumer"
+              handler="Velou\DataFeed\Model\Queue\Consumer::process"/>
+    <consumer name="velou.queue.order.sync"
+              queue="velou.queue.order.sync"
+              connection="db"
+              maxMessages="5000"
+              consumerInstance="Magento\Framework\MessageQueue\Consumer"
+              handler="Velou\DataFeed\Model\Queue\Order\Consumer::process"/>
+</config>
