@@ -12,6 +12,8 @@ use \Magento\ConfigurableProduct\Model\Product\Type\Configurable;
 use \Magento\Framework\MessageQueue\PublisherInterface;
 use \Magento\Framework\Serialize\Serializer\Json;
 use \Magento\Catalog\Model\Product\Type;
+use \Magento\GroupedProduct\Model\Product\Type\Grouped;
+use \Magento\Downloadable\Model\Product\Type as Downloadable;
 use Velou\DataFeed\Model\Apiconnector\Rest;
 use Velou\DataFeed\Model\Feed\Catalog;
 
@@ -67,7 +69,17 @@ class Sync
         $configProductData = $this->catalog->getProductCollectionData(Configurable::TYPE_CODE);
         $simpleProductData = $this->catalog->getProductCollectionData(Type::DEFAULT_TYPE);
         $bundleProductData = $this->catalog->getProductCollectionData(Type::TYPE_BUNDLE);
-        $productData = array_merge($configProductData, $simpleProductData, $bundleProductData);
+        $groupProductData = $this->catalog->getProductCollectionData(Grouped::TYPE_CODE);
+        $virtualProductData = $this->catalog->getProductCollectionData(Type::TYPE_VIRTUAL);
+        $downloadableProductData = $this->catalog->getProductCollectionData(Downloadable::TYPE_DOWNLOADABLE);
+        $productData = array_merge(
+            $configProductData,
+            $simpleProductData,
+            $bundleProductData,
+            $groupProductData,
+            $virtualProductData,
+            $downloadableProductData
+        );
         if ($productData) {
             $chunks = array_chunk($productData,self::BATCH_SIZE);
             foreach ($chunks as $chunk){
