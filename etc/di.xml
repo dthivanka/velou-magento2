@@ -27,4 +27,17 @@
             </argument>
         </arguments>
     </type>
+    <type name="Magento\Framework\View\Element\UiComponent\DataProvider\CollectionFactory">
+        <arguments>
+            <argument name="collections" xsi:type="array">
+                <item name="ui_listing_data_source" xsi:type="string">Velou\DataFeed\Model\ResourceModel\Log\Grid\Collection</item>
+            </argument>
+        </arguments>
+    </type>
+    <virtualType name="Velou\DataFeed\Model\ResourceModel\Log\Grid\Collection" type="Magento\Framework\View\Element\UiComponent\DataProvider\SearchResult">
+        <arguments>
+            <argument name="mainTable" xsi:type="string">velou_datafeed_log</argument>
+            <argument name="resourceModel" xsi:type="string">Velou\DataFeed\Model\ResourceModel\Log</argument>
+        </arguments>
+    </virtualType>
 </config>

@@ -42,6 +42,7 @@ class Rest
         $jsonData = json_encode($data);
         $this->curl->addHeader("X-Velou-API-Key", $this->getApiKey());
         $this->curl->addHeader("Content-Type", "application/json");
+        $this->curl->setOption(CURLOPT_FOLLOWLOCATION, true);
         $this->curl->post($this->getApiUrl().$endPoint, $jsonData);
 
         return $this->curl->getBody();
@@ -56,6 +57,7 @@ class Rest
     public function doDelete($productId,$endPoint) {
         $this->curl->addHeader("X-Velou-API-Key", $this->getApiKey());
         $this->curl->addHeader("Content-Type", "application/json");
+        $this->curl->setOption(CURLOPT_FOLLOWLOCATION, true);
         $this->curl->delete($this->getApiUrl().$endPoint.'/'.$productId);
 
         return $this->curl->getBody();

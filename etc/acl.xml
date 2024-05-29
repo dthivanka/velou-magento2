@@ -16,6 +16,11 @@
                         </resource>
                     </resource>
                 </resource>
+                <resource id="Magento_Backend::system">
+                    <resource id="Velou_DataFeed::datafeed_log" title="Velou">
+                        <resource id="Velou_DataFeed::datafeed_logreport" title="Data Feed Log Report" />
+                    </resource>
+                </resource>
             </resource>
         </resources>
     </acl>

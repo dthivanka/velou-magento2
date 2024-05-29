@@ -9,21 +9,32 @@
 namespace Velou\DataFeed\Model\Queue;
 
 use \Magento\ConfigurableProduct\Model\Product\Type\Configurable;
+use \Magento\GroupedProduct\Model\Product\Type\Grouped;
 use \Magento\Catalog\Api\ProductRepositoryInterface;
-use Magento\Catalog\Helper\Image;
+use \Magento\Catalog\Model\ProductFactory;
+use \Magento\Catalog\Helper\Image;
 use \Magento\Catalog\Model\ResourceModel\Category\CollectionFactory as CategoryCollectionFactory;
 use \Magento\CatalogInventory\Model\Stock\StockItemRepository;
+use \Magento\Framework\MessageQueue\PublisherInterface;
 use \Magento\Framework\Serialize\Serializer\Json;
-use \Magento\Review\Model\RatingFactory;
-use Magento\Catalog\Model\Product\Type;
+use \Magento\Catalog\Model\Product\Option;
+use \Magento\Catalog\Model\Product\Type;
+use \Magento\Catalog\Model\Product\Action;
 use Velou\DataFeed\Model\Apiconnector\Rest;
 use Velou\DataFeed\Helper\Data as HelperData;
 use Velou\DataFeed\Logger\Logger;
+use Velou\DataFeed\Model\Log;
+use Velou\DataFeed\Model\RetryCountFactory as RetryCountFactory;
+use Velou\DataFeed\Model\RetryCount;
 
 class Consumer
 {
     const IN_STOCK = "InStock";
     const OUT_OF_STOCK = "OutOfStock";
+    const JOB_NAME_UPDATE = 'Product Update Sync';
+    const JOB_NAME_DELETE = 'Product Delete Sync';
+    const TOPIC_NAME = 'velou.queue.product.sync';
+
     /**
      * @var Logger
      */
@@ -60,25 +71,49 @@ class Consumer
     protected $stockItemRepository;
 
     /**
-     * @var RatingFactory
-     */
-    protected $ratingFactory;
-
-    /**
      * @var HelperData
      */
     protected $helperData;
 
     /**
-     * @param LoggerInterface $logger
+     * @var ProductFactory
+     */
+    protected $productFactory;
+
+    /**
+     * @var Option
+     */
+    protected $customOptions;
+
+    /**
+     * @var PublisherInterface
+     */
+    private $publisher;
+
+    /**
+     * @var Action
+     */
+    private $productActionInstance;
+
+    /**
+     * @var RetryCountFactory
+     */
+    protected $retryCountFactory;
+
+    /**
+     * @param Logger $logger
      * @param Rest $rest
      * @param Json $json
      * @param ProductRepositoryInterface $productRepository
      * @param CategoryCollectionFactory $categoryCollectionFactory
      * @param Image $imageHelper
      * @param StockItemRepository $stockItemRepository
-     * @param RatingFactory $ratingFactory
+     * @param PublisherInterface $publisher
      * @param HelperData $helperData
+     * @param ProductFactory $productFactory
+     * @param Option $customOptions
+     * @param Action $productActionInstance
+     * @param RetryCountFactory $retryCountFactory
      */
     public function __construct(
         Logger $logger,
@@ -88,8 +123,12 @@ class Consumer
         CategoryCollectionFactory $categoryCollectionFactory,
         Image $imageHelper,
         StockItemRepository $stockItemRepository,
-        RatingFactory $ratingFactory,
-        HelperData $helperData
+        PublisherInterface $publisher,
+        HelperData $helperData,
+        ProductFactory $productFactory,
+        Option $customOptions,
+        Action $productActionInstance,
+        RetryCountFactory $retryCountFactory,
     )
     {
         $this->logger = $logger;
@@ -99,8 +138,12 @@ class Consumer
         $this->categoryCollectionFactory = $categoryCollectionFactory;
         $this->imageHelper = $imageHelper;
         $this->stockItemRepository = $stockItemRepository;
-        $this->ratingFactory = $ratingFactory;
         $this->helperData = $helperData;
+        $this->productFactory = $productFactory;
+        $this->customOptions = $customOptions;
+        $this->publisher = $publisher;
+        $this->productActionInstance = $productActionInstance;
+        $this->retryCountFactory = $retryCountFactory;
     }
 
     /**
@@ -118,15 +161,23 @@ class Consumer
             } else {
                 $feed = [];
                 foreach ($productsIds as $productId) {
-                    $product = $this->productRepository->getById($productId);
+                    $product = $this->productFactory->create()->load($productId);
 
                     $feedData ['id'] = $productId;
                     $feedData ['url'] = $product->getProductUrl();
                     $feedData ['product_type'] = $product->getTypeId();
                     $feedData ['name'] = $product->getName();
                     $feedData ['description'] = $product->getDescription() ? $product->getDescription() : ' ';
+                    $feedData ['short_description'] = $product->getShortDescription() ? $product->getShortDescription() : ' ';
                     $feedData ['categories'] = $this->getProductCategoryNames($product->getCategoryIds());
                     $feedData ['media'] = $this->getProductMedia($product);
+                    $feedData ['url_key'] = $product->getUrlKey();
+                    $feedData ['meta_title'] = $product->getMetaTitle();
+                    $feedData ['meta_keywords'] = $product->getMetaKeyword();
+                    $feedData ['meta_description'] = $product->getMetaDescription();
+                    $feedData ['up_sells'] = $product->getUpSellProductIds();
+                    $feedData ['cross_sells'] = $product->getCrossSellProductIds();
+                    $feedData ['related_products'] = $product->getRelatedProductIds();
                     if ($product->getTypeId() === Configurable::TYPE_CODE) {
                         $configurableProductAttributes = [];
                         $configurableProductOptions = $product->getTypeInstance()->getConfigurableOptions($product);
@@ -141,7 +192,32 @@ class Consumer
                         }
                         $children = $product->getTypeInstance()->getUsedProducts($product);
                         $feedData ['skus'] = $this->getChildrenDetails($children, array_unique($configurableProductAttributes));
-                    } elseif ($product->getTypeId() === Type::TYPE_SIMPLE) {
+                    } else if ($product->getTypeId() === Grouped::TYPE_CODE) {
+                        $children = $product->getTypeInstance()->getAssociatedProducts($product);
+                        $feedData ['skus'] = $this->getChildrenDetails($children);
+                    } else if ($product->getTypeId() === Type::TYPE_BUNDLE) {
+                        $bundleOptions = $product->getTypeInstance()->getOptions($product);
+                        $bundleSelections = $product->getTypeInstance()
+                            ->getSelectionsCollection(
+                            $product->getTypeInstance(true)->getOptionsIds($product),
+                            $product
+                        );
+                        $bundleOptionsData = [];
+                        $bundleSelectionsData = [];
+                        foreach ($bundleOptions as $option) {
+                            $optionData = $option->getData();
+                            $optionData['option_id'] = $option->getId();
+                            $bundleOptionsData[] = $optionData;
+                        }
+                        foreach ($bundleSelections as $selection) {
+                            $selectionData = $selection->getData();
+                            $selectionData['option_id'] = $selection->getOptionId();
+                            $bundleSelectionsData[$selection->getOptionId()][] = $selectionData;
+                        }
+                        $feedData ['bundle_options'] = $bundleOptionsData;
+                        $feedData ['bundle_selections'] = $bundleSelectionsData;
+                        $feedData ['skus'] = $this->getBundleProductSkus($bundleSelectionsData);
+                    } else {
                         $feedData ['skus'] = [
                             [
                                 'variationId' => $productId,
@@ -151,17 +227,60 @@ class Consumer
                             ]
                         ];
                     }
-                    $feedData ['custom_options'] = [];
-                    $feedData ['custom_attributes'] = $this->getCustomAttributeOfProduct($product);
+                    $feedData ['custom_options'] = $this->getCustomOptions($product);
+
+                    $customAttributeData = $this->getCustomAttributeOfProduct($product);
+                    if ($customAttributeData) {
+                        $feedData ['custom_attributes'] = $customAttributeData;
+                    } else {
+                        $feedData ['custom_attributes'] = [];
+                    }
+
                     $feed[] = $feedData;
                 }
                 //Post product details to Velou
-                $this->logger->info(print_r($feed, true));
                 $response = $this->rest->doPost($feed, '/products');
                 $this->logger->info($response);
+                $this->helperData->addLogMessage(
+                    self::JOB_NAME_UPDATE,
+                    $response,
+                    Log::MESSAGE_TYPE_INFO,
+                );
+                $status = $this->processResponse($response);
+                //Publish the product ids to the queue for retry if service is down
+                if(!$status) {
+                    //Update the product sync attributes
+                    foreach ($productsIds as $productId) {
+                        $updateValues = [
+                            'velou_last_sync_status' => 'Error',
+                            'velou_last_sync_time' => date('Y-m-d H:i:s'),
+                            'velou_last_sync_errors' => 'Invalid response from the server',
+                        ];
+                        $this->updateProductAttribute($productId, $updateValues);
+                        //Save the product for retry
+                        $retryCount = $this->retryCountFactory->create();
+                        $retryCount->setEntityId($productId);
+                        $retryCount->setEntity(RetryCount::ENTITY_TYPE_PRODUCT);
+                        $retryCount->setRetryCount($retryCount->getRetryCount() + 1);
+                        $retryCount->save();
+                    }
+                } else {
+                    //Delete the product from retry table when sync is successful
+                    foreach ($productsIds as $productId) {
+                        $this->retryCountFactory->create()->load($productId, 'entity_id')->delete();
+                    }
+                }
             }
         } catch (\Exception $e) {
             $this->logger->error($e->getMessage());
+            $this->helperData->addLogMessage(
+                self::JOB_NAME_DELETE,
+                $e->getMessage(),
+                Log::MESSAGE_TYPE_ERROR,
+                $e->getTraceAsString()
+            );
+            //Publish the product ids to the queue for retry
+            $this->publisher->publish(self::TOPIC_NAME, $productsIds);
         }
     }
 
@@ -191,8 +310,18 @@ class Consumer
     public function getProductMedia($product)
     {
         $media = [];
-        $childMedia['url'] = $this->imageHelper->init($product,'product_small_image')->getUrl();
-        $media[] = $childMedia;
+        $galleryImages = $product->getMediaGalleryImages();
+        //If no images found, add placeholder image
+        if ($galleryImages->getSize() == 0) {
+            $media[] = [
+                'url' => $this->helperData->getProductPlaceHolderImage(),
+            ];
+            return $media;
+        }
+        foreach($galleryImages as $productImage) {
+            $childMedia['url'] = $productImage->getUrl();
+            $media[] = $childMedia;
+        }
         return $media;
     }
 
@@ -211,6 +340,8 @@ class Consumer
             $sku = [];
             $childrenProduct = $this->productRepository->getById($child->getEntityId());
             $sku['variationId'] = $child->getEntityId();
+            $sku['sku'] = $child->getSku();
+            $sku['name'] = $child->getName();
             $sku['price'] = $this->getPriceByType($childrenProduct, 'final_price');
             $sku['availability'] = $this->getStockItem($child->getEntityId())->getIsInStock() ? self::IN_STOCK : self::OUT_OF_STOCK;
             foreach ($configurableAttributes as $attribute){
@@ -246,11 +377,14 @@ class Consumer
     /**
      * Get custom attributes of the product
      * @param $product
-     * @return array
+     * @return array|boolean
      */
     public function getCustomAttributeOfProduct($product)
     {
         $customAttributes = [];
+        if (!$this->helperData->getProductCustomAttributesToSync()) {
+            return false;
+        }
         $attributes = explode(',', $this->helperData->getProductCustomAttributesToSync());
         foreach ($attributes as $attribute){
             $attribute = trim($attribute);
@@ -271,6 +405,108 @@ class Consumer
     {
         $response = $this->rest->doDelete($product, '/products');
         $this->logger->info($response);
+        $this->helperData->addLogMessage(
+            self::JOB_NAME_DELETE,
+            $response,
+            Log::MESSAGE_TYPE_INFO,
+        );
     }
 
+    /**
+     * Get custom options of the product
+     * @param $product
+     * @return array
+     */
+    private function getCustomOptions($product)
+    {
+        $customOptionCollection = $this->customOptions->getProductOptionCollection($product);
+        $customOptions = [];
+        foreach ($customOptionCollection as $option) {
+            $customOption [] = [
+                'option_id' => $option->getId(),
+                'option_label' => $option->getTitle(),
+                'option_type' => $option->getType(),
+                'option_values' => $option->getValues() ? $this->getOptionValuesAsArray($option->getValues()) : '',
+            ];
+            $customOptions[] = $customOption;
+        }
+        return $customOptions;
+    }
+
+    /**
+     * Get option values as array
+     * @param $optionValues
+     * @return array
+     */
+    private function getOptionValuesAsArray($optionValues)
+    {
+        $optionValuesArray = [];
+        foreach ($optionValues as $optionValue) {
+            $optionValuesArray[] = [
+                'option_id' => $optionValue->getId(),
+                'option_value' => $optionValue->getTitle(),
+                'option_price' => $optionValue->getPrice(),
+                'option_sku' => $optionValue->getSku(),
+            ];
+        }
+        return $optionValuesArray;
+    }
+
+    private function getBundleProductSkus($bundleSelectionsData)
+    {
+        $skus = [];
+        foreach ($bundleSelectionsData as $selections) {
+            foreach ($selections as $selection) {
+                $childrenProduct = $this->productRepository->getById($selection['product_id']);
+                $skus[] = [
+                    'variationId' => $selection['product_id'],
+                    'sku' => $selection['sku'],
+                    'name' => $selection['name'],
+                    'price' => $this->getPriceByType($childrenProduct, 'final_price'),
+                    'availability' => $this->getStockItem($childrenProduct->getEntityId())->getIsInStock() ? self::IN_STOCK : self::OUT_OF_STOCK,
+                    'media' => $this->getProductMedia($childrenProduct),
+                ];
+            }
+        }
+        return $skus;
+    }
+
+    private function processResponse($response)
+    {
+        $response = $this->json->unserialize($response);
+        $date = date('Y-m-d H:i:s');
+        if (isset($response['results'])) {
+            foreach ($response['results'] as $result) {
+                if ($result['success']) {
+                    $updateValues = [
+                        'velou_last_sync_status' => 'Success',
+                        'velou_task_id' => $result['taskId'],
+                        'velou_last_success_sync_time' => $date,
+                        'velou_last_sync_time' => $date,
+                        'velou_last_sync_errors' => 'No Errors',
+                    ];
+                } else {
+                    $updateValues = [
+                        'velou_last_sync_status' => 'Error',
+                        'velou_last_sync_time' => $date,
+                        'velou_last_sync_errors' => $result['code'],
+                    ];
+                }
+                $this->updateProductAttribute($result['id'], $updateValues);
+                return true;
+            }
+        } elseif (isset($response['message']) && $response['message']==='An invalid response was received from the upstream server') {
+            return false;
+        }
+    }
+
+    /**
+     * Update product attribute
+     * @param $productId
+     * @param $updateValues
+     */
+    private function updateProductAttribute($productId,$updateValues)
+    {
+        $this->productActionInstance->updateAttributes([$productId], $updateValues, 0);
+    }
 }

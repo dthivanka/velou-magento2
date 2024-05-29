@@ -1,0 +1,20 @@
+<?xml version="1.0"?>
+<!--
+  ~ @copyright   Velou, 2023
+  ~ @package     Velou_DataFeed
+  ~ @author      Duleep Thivanka <duleepthivanka@gamil.com>
+  ~
+  -->
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Store:etc/config.xsd">
+    <default>
+        <velou_config>
+            <settings>
+                <api_host_url>https://api.velou.com</api_host_url>
+            </settings>
+            <data_sync>
+                <catalog_data_sync_frequency>0 3 * * *</catalog_data_sync_frequency>
+                <data_sync_retry_frequency>*/15 * * * *</data_sync_retry_frequency>
+            </data_sync>
+        </velou_config>
+    </default>
+</config>

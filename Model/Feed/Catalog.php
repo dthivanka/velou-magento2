@@ -11,7 +11,6 @@ use Magento\Catalog\Api\ProductRepositoryInterface;
 use Magento\Catalog\Helper\Image;
 use Magento\Catalog\Model\ResourceModel\Category\CollectionFactory as CategoryCollectionFactory;
 use Magento\Catalog\Model\ResourceModel\Product\CollectionFactory as ProductCollectionFactory;
-use Magento\ConfigurableProduct\Model\Product\Type\Configurable;
 
 class Catalog
 {
@@ -54,28 +53,15 @@ class Catalog
     }
 
     /**
-     * Get configurable product ids as an array
+     * Get product ids by type
      *
+     * @param $type
      * @return array
      */
-    public function getConfigurableProductCollectionData() {
-        $configProductCollection = $this->productCollectionFactory->create();
-        $configProductCollection->addFieldToFilter('type_id', Configurable::TYPE_CODE)->setPageSize(1)->setCurPage(1);
-        //$configProductCollection->addAttributeToFilter('entity_id', [62,78,142,158,190,254,334])->setPageSize(1)->setCurPage(1);
-        return $configProductCollection->getAllIds();
-    }
-
-
-    /**
-     * Get simple product ids as an array
-     *
-     * @return array
-     */
-    public function getSimpleProductCollectionData(){
-        $simpleProductCollection = $this->productCollectionFactory->create();
-        $simpleProductCollection->addAttributeToFilter('type_id', 'simple');
-        $simpleProductCollection->addAttributeToFilter('status', 1);
-        //$simpleProductCollection->addAttributeToFilter('entity_id', [1,2,3,4,5,6,7,8,9,10])->setPageSize(1)->setCurPage(1);
-        return $simpleProductCollection->getAllIds();
+    public function getProductCollectionData($type){
+        $productCollection = $this->productCollectionFactory->create();
+        $productCollection->addAttributeToFilter('type_id', $type);
+        $productCollection->addAttributeToFilter('status', 1);
+        return $productCollection->getAllIds();
     }
 }

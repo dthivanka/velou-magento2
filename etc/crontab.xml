@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+<!--
+  ~ @copyright   Velou, 2023
+  ~ @package     Velou_DataFeed
+  ~ @author      Duleep Thivanka <duleepthivanka@gamil.com>
+  ~
+  -->
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Cron:etc/crontab.xsd">
+    <group id="default">
+        <job name="velou_datafeed_product_sync" instance="Velou\DataFeed\Model\Sync" method="process">
+            <config_path>crontab/default/jobs/velou_datafeed_product_sync/schedule/cron_expr</config_path>
+        </job>
+        <job name="velou_datafeed_sync_retry" instance="Velou\DataFeed\Model\SyncRetry" method="process">
+            <config_path>velou_config/data_sync/data_sync_retry_frequency</config_path>
+        </job>
+    </group>
+</config>

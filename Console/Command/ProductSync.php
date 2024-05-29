@@ -18,6 +18,9 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 use Velou\DataFeed\Model\Sync;
 use Velou\DataFeed\Helper\Data as HelperData;
+use Velou\DataFeed\Model\LogFactory as LogFactory;
+use Velou\DataFeed\Model\Log;
+use Velou\DataFeed\Model\ResourceModel\LogFactory as LogResourceModelFactory;
 
 /**
  * Command to sync entire product collection to Velou
@@ -26,6 +29,7 @@ use Velou\DataFeed\Helper\Data as HelperData;
  */
 class ProductSync extends Command
 {
+    const PRODUCT_SYNC_NAME = 'Bulk Product Sync';
     /**
      * @var StoreManagerInterface
      */
@@ -48,7 +52,6 @@ class ProductSync extends Command
 
     protected $helperData;
 
-
     /**
      * ProductSync constructor.
      *
@@ -63,7 +66,7 @@ class ProductSync extends Command
         ProductCollectionFactory $productCollectionFactory,
         StoreManagerInterface $storeManager,
         Sync $sync,
-        HelperData $helperData
+        HelperData $helperData,
     ) {
         $this->appState = $appState;
         $this->productCollectionFactory = $productCollectionFactory;
@@ -88,20 +91,37 @@ class ProductSync extends Command
     protected function execute(InputInterface $input, OutputInterface $output)
     {
         $this->appState->setAreaCode(Area::AREA_ADMINHTML);
+
         if(!$this->helperData->isDataFeedModuleEnabled()){
+            $this->helperData->addLogMessage(
+                self::PRODUCT_SYNC_NAME,
+                "Velou DataFeed module is disabled",
+                Log::MESSAGE_TYPE_WARNING
+            );
             $output->writeln("Velou DataFeed module is disabled");
             return Cli::RETURN_FAILURE;
         }
         if(!$this->helperData->isCatalogSyncEnabled()){
-            $output->writeln("Catalog sync is disabled");
+            $this->helperData->addLogMessage(
+                self::PRODUCT_SYNC_NAME,
+                "Catalog sync is disabled",
+                Log::MESSAGE_TYPE_WARNING
+            );
             return Cli::RETURN_FAILURE;
         }
         $output->writeln("Starting product sync");
+        $this->helperData->addLogMessage(
+            self::PRODUCT_SYNC_NAME,
+            "Starting product sync",
+            Log::MESSAGE_TYPE_INFO
+        );
         $this->sync->process();
         $output->writeln("Product sync finished");
+        $this->helperData->addLogMessage(
+            self::PRODUCT_SYNC_NAME,
+            "Product sync finished",
+            Log::MESSAGE_TYPE_SUCCESS
+        );
         return Cli::RETURN_SUCCESS;
     }
-
-
-
 }

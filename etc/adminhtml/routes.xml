@@ -1,0 +1,14 @@
+<?xml version="1.0"?>
+<!--
+  ~ @copyright   Velou, 2024
+  ~ @package     Velou_DataFeed
+  ~ @author      Duleep Thivanka <duleepthivanka@gamil.com>
+  ~
+  -->
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:framework:App/etc/routes.xsd">
+    <router id="admin">
+        <route id="datafeed" frontName="datafeed">
+            <module name="Velou_DataFeed" />
+        </route>
+    </router>
+</config>

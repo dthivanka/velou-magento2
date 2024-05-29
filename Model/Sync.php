@@ -8,8 +8,10 @@
 
 namespace Velou\DataFeed\Model;
 
+use \Magento\ConfigurableProduct\Model\Product\Type\Configurable;
 use \Magento\Framework\MessageQueue\PublisherInterface;
 use \Magento\Framework\Serialize\Serializer\Json;
+use \Magento\Catalog\Model\Product\Type;
 use Velou\DataFeed\Model\Apiconnector\Rest;
 use Velou\DataFeed\Model\Feed\Catalog;
 
@@ -62,9 +64,10 @@ class Sync
      */
     public function process()
     {
-        $configProductData = $this->catalog->getConfigurableProductCollectionData();
-        $simpleProductData = $this->catalog->getSimpleProductCollectionData();
-        $productData = array_merge($configProductData, $simpleProductData);
+        $configProductData = $this->catalog->getProductCollectionData(Configurable::TYPE_CODE);
+        $simpleProductData = $this->catalog->getProductCollectionData(Type::DEFAULT_TYPE);
+        $bundleProductData = $this->catalog->getProductCollectionData(Type::TYPE_BUNDLE);
+        $productData = array_merge($configProductData, $simpleProductData, $bundleProductData);
         if ($productData) {
             $chunks = array_chunk($productData,self::BATCH_SIZE);
             foreach ($chunks as $chunk){

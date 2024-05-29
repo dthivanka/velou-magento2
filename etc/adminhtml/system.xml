@@ -43,10 +43,29 @@
                     <label>Product attributes to sync</label>
                     <comment>Comma separated list of product attribute codes to sync. Ex: material,pattern,climate</comment>
                 </field>
+                <field id="frequency" translate="label" type="select" sortOrder="25" showInDefault="1" showInWebsite="1" showInStore="1">
+                    <label>Catalog Sync Frequency</label>
+                    <source_model>Magento\Cron\Model\Config\Source\Frequency</source_model>
+                    <backend_model>Velou\DataFeed\Model\System\Config\CatalogSyncCronConfig</backend_model>
+                    <comment>Configure how often all products should be sync with Velou. Recommended Daily</comment>
+                </field>
+                <field id="time" translate="label comment" sortOrder="27" type="time" showInDefault="1" showInWebsite="1" showInStore="1">
+                    <label>Catalog Sync Start Time</label>
+                </field>
+                <field id="catalog_data_sync_btn" type="button" sortOrder="28" showInDefault="1" showInWebsite="1" showInStore="1">
+                    <frontend_model>Velou\DataFeed\Block\Adminhtml\Form\Field\Sync\CatalogData</frontend_model>
+                    <label>Sync Catalog Data</label>
+                    <comment>Click here to sync all catalog data with Velou</comment>
+                </field>
                 <field id="order_sync" translate="label comment" type="select" sortOrder="30" showInDefault="1" showInWebsite="1" showInStore="1">
-                <label>Order Sync Enabled</label>
-                <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
-            </field>
+                    <label>Order Sync Enabled</label>
+                    <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
+                </field>
+                <field id="data_sync_retry_frequency" translate="label comment" sortOrder="40" type="select" showInDefault="1">
+                    <label>Data Sync Retry Frequency</label>
+                    <source_model>Velou\DataFeed\Model\System\Config\Source\RetryFrequency</source_model>
+                    <comment>Configure how often sync retry should happen in event of a failure.</comment>
+                </field>
             </group>
         </section>
     </system>

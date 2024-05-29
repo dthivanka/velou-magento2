@@ -1,0 +1,30 @@
+<?xml version="1.0"?>
+<!--
+/**
+ * Copyright © Magento, Inc. All rights reserved.
+ * See COPYING.txt for license details.
+ */
+-->
+<schema xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="urn:magento:framework:Setup/Declaration/Schema/etc/schema.xsd">
+    <table name="velou_datafeed_log" resource="default" comment="Velou integration data feed error log">
+        <column xsi:type="int" name="id" padding="7" unsigned="false" nullable="false" identity="true" comment="ID" />
+        <column xsi:type="datetime" name="created_at" on_update="false" nullable="false" comment="Created at"/>
+        <column xsi:type="varchar" name="job" nullable="false"  comment="Sync Job" />
+        <column xsi:type="text" name="log_message" comment="Log Message"/>
+        <column xsi:type="text" name="log_trace" comment="Log Trace"/>
+        <column xsi:type="varchar" name="message_type" comment="Log Message Type"/>
+        <constraint xsi:type="primary" referenceId="PRIMARY">
+            <column name="id"/>
+        </constraint>
+    </table>
+    <table name="velou_datafeed_retry_count" resource="default" comment="Velou integration data feed retry count">
+        <column xsi:type="int" name="id" padding="7" unsigned="false" nullable="false" identity="true" comment="ID" />
+        <column xsi:type="text" name="entity" comment="Entity"/>
+        <column xsi:type="int" name="entity_id" padding="7" unsigned="false" nullable="false" comment="Entity ID"/>
+        <column xsi:type="int" name="retry_count" padding="7" unsigned="false" nullable="false" comment="Retry Count"/>
+        <constraint xsi:type="primary" referenceId="PRIMARY">
+            <column name="id"/>
+        </constraint>
+    </table>
+</schema>

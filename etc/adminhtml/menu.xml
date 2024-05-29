@@ -1,0 +1,24 @@
+<?xml version="1.0"?>
+<!--
+  ~ @copyright   Velou, 2024
+  ~ @package     Velou_DataFeed
+  ~ @author      Duleep Thivanka <duleepthivanka@gamil.com>
+  ~
+  -->
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Backend:etc/menu.xsd">
+    <menu>
+        <add id="Velou_DataFeed::system_log"
+            title="Velou"
+            module="Velou_DataFeed"
+            sortOrder="300"
+            parent="Magento_Backend::system"
+            resource="Velou_DataFeed::datafeed_log"/>
+        <add id="Velou_DataFeed::system_logreport"
+             title="Data Feed Log Report"
+             module="Velou_DataFeed"
+             sortOrder="10"
+             parent="Velou_DataFeed::system_log"
+             action="datafeed/log/index"
+             resource="Velou_DataFeed::datafeed_logreport"/>
+    </menu>
+</config>

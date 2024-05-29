@@ -1,0 +1,53 @@
+<?php
+/**
+ * Copyright © 2016 MageWorx. All rights reserved.
+ * See LICENSE.txt for license details.
+ */
+?>
+<?php /* @var $block Velou\DataFeed\Block\Adminhtml\Form\Field\Sync\CatalogData */ ?>
+
+<script>
+    require([
+        'jquery',
+        'prototype'
+    ], function(jQuery){
+
+        var syncSpan = jQuery('#sync_span');
+
+        jQuery('#catalog_sync_button').click(function () {
+            var params = {};
+            new Ajax.Request('<?php echo $block->getAjaxUrl() ?>', {
+                parameters:     params,
+                loaderArea:     false,
+                asynchronous:   true,
+                onCreate: function() {
+                    syncSpan.find('.collected').hide();
+                    syncSpan.find('.processing').show();
+                    jQuery('#sync_message_span').text('');
+                },
+                onSuccess: function(response) {
+                    syncSpan.find('.processing').hide();
+
+                    var resultText = '';
+                    if (response.status > 200) {
+                        resultText = response.statusText;
+                        syncSpan.css('color','red');
+                    } else {
+                        resultText = response.responseJSON.message;
+                        syncSpan.css('color','green');
+                        syncSpan.find('.synced').show();
+                    }
+                    jQuery('#sync_message_span').text(resultText);
+                }
+            });
+        });
+
+    });
+</script>
+
+<?php echo $block->getButtonHtml() ?>
+<span class="sync-indicator" id="sync_span">
+    <img class="processing" hidden="hidden" alt="Collecting" style="margin:0 5px" src="<?php echo $block->getViewFileUrl('images/process_spinner.gif') ?>"/>
+    <img class="synced" hidden="hidden" alt="Synced" style="margin:-3px 5px" src="<?php echo $block->getViewFileUrl('images/rule_component_apply.gif') ?>"/>
+    <span id="sync_message_span"></span>
+</span>

@@ -1,0 +1,15 @@
+{
+    "velou_datafeed_log": {
+        "column": {
+            "id": true,
+            "created_at": true,
+            "job": true,
+            "log_message": true,
+            "log_trace": true,
+            "message_type": true
+        },
+        "constraint": {
+            "PRIMARY": true
+        }
+    }
+}
