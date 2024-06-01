@@ -240,6 +240,7 @@ class Consumer
                 }
                 //Post product details to Velou
                 $response = $this->rest->doPost($feed, '/products');
+                $this->logger->info(print_r($feed,true));
                 $this->logger->info($response);
                 $this->helperData->addLogMessage(
                     self::JOB_NAME_UPDATE,
@@ -422,10 +423,18 @@ class Consumer
         $customOptionCollection = $this->customOptions->getProductOptionCollection($product);
         $customOptions = [];
         foreach ($customOptionCollection as $option) {
-            $customOption [] = [
+            $customOption = [
                 'option_id' => $option->getId(),
                 'option_label' => $option->getTitle(),
+                'option_price' => $option->getPrice(),
+                'option_price_type' => $option->getPriceType(),
+                'option_sku' => $option->getSku(),
                 'option_type' => $option->getType(),
+                'option_max_characters' => $option->getMaxCharacters(),
+                'option_is_require' => $option->getIsRequire(),
+                'option_file_extension' => $option->getFileExtension(),
+                'option_image_size_x' => $option->getImageSizeX(),
+                'option_image_size_y' => $option->getImageSizeY(),
                 'option_values' => $option->getValues() ? $this->getOptionValuesAsArray($option->getValues()) : '',
             ];
             $customOptions[] = $customOption;
@@ -446,6 +455,7 @@ class Consumer
                 'option_id' => $optionValue->getId(),
                 'option_value' => $optionValue->getTitle(),
                 'option_price' => $optionValue->getPrice(),
+                'option_price_type' => $optionValue->getPriceType(),
                 'option_sku' => $optionValue->getSku(),
             ];
         }
