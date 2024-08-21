@@ -9,6 +9,7 @@
 namespace Velou\DataFeed\Model\Queue;
 
 use \Magento\ConfigurableProduct\Model\Product\Type\Configurable;
+use \Magento\Framework\Exception\NoSuchEntityException;
 use \Magento\GroupedProduct\Model\Product\Type\Grouped;
 use \Magento\Catalog\Api\ProductRepositoryInterface;
 use \Magento\Catalog\Model\ProductFactory;
@@ -218,11 +219,12 @@ class Consumer
                         $feedData ['bundle_selections'] = $bundleSelectionsData;
                         $feedData ['skus'] = $this->getBundleProductSkus($bundleSelectionsData);
                     } else {
+                        $stockItem = $this->getStockItem($productId);
                         $feedData ['skus'] = [
                             [
                                 'variationId' => $productId,
                                 'price' => $this->getPriceByType($product, 'final_price'),
-                                'availability' => $this->getStockItem($productId)->getIsInStock() ? self::IN_STOCK : self::OUT_OF_STOCK,
+                                'availability' => $stockItem ? $stockItem->getIsInStock() ? self::IN_STOCK : self::OUT_OF_STOCK: self::OUT_OF_STOCK,
                                 'media' => $this->getProductMedia($product),
                             ]
                         ];
@@ -339,12 +341,13 @@ class Consumer
         $skus = [];
         foreach ($children as $child) {
             $sku = [];
+            $stockItem = $this->getStockItem($child->getEntityId());
             $childrenProduct = $this->productRepository->getById($child->getEntityId());
             $sku['variationId'] = $child->getEntityId();
             $sku['sku'] = $child->getSku();
             $sku['name'] = $child->getName();
             $sku['price'] = $this->getPriceByType($childrenProduct, 'final_price');
-            $sku['availability'] = $this->getStockItem($child->getEntityId())->getIsInStock() ? self::IN_STOCK : self::OUT_OF_STOCK;
+            $sku['availability'] = $stockItem ? $stockItem->getIsInStock() ? self::IN_STOCK : self::OUT_OF_STOCK: self::OUT_OF_STOCK;
             foreach ($configurableAttributes as $attribute){
                 $sku[$attribute] = $childrenProduct->getResource()->getAttribute($attribute)->getFrontend()->getValue($childrenProduct);
             }
@@ -372,7 +375,12 @@ class Consumer
      */
     public function getStockItem($productId)
     {
-        return $this->stockItemRepository->get($productId);
+        try {
+            $stockItem = $this->stockItemRepository->get($productId);
+        } catch (NoSuchEntityException $e) {
+            return false;
+        }
+        return $stockItem;
     }
 
     /**
@@ -389,11 +397,14 @@ class Consumer
         $attributes = explode(',', $this->helperData->getProductCustomAttributesToSync());
         foreach ($attributes as $attribute){
             $attribute = trim($attribute);
-            $customAttribute = [];
-            $customAttribute['attribute_code'] = $attribute;
-            $customAttribute['attribute_label'] = $product->getResource()->getAttribute($attribute)->getFrontendLabel();
-            $customAttribute['value'] = $product->getResource()->getAttribute($attribute)->getFrontend()->getValue($product);
-            $customAttributes[] = $customAttribute;
+            $attributeObj = $product->getResource()->getAttribute($attribute);
+            if ($attributeObj) {
+                $customAttribute = [];
+                $customAttribute['attribute_code'] = $attribute;
+                $customAttribute['attribute_label'] = $product->getResource()->getAttribute($attribute)->getFrontendLabel();
+                $customAttribute['value'] = $product->getResource()->getAttribute($attribute)->getFrontend()->getValue($product);
+                $customAttributes[] = $customAttribute;
+            }
         }
         return $customAttributes;
     }
@@ -468,12 +479,13 @@ class Consumer
         foreach ($bundleSelectionsData as $selections) {
             foreach ($selections as $selection) {
                 $childrenProduct = $this->productRepository->getById($selection['product_id']);
+                $stockItem = $this->getStockItem($selection['product_id']);
                 $skus[] = [
                     'variationId' => $selection['product_id'],
                     'sku' => $selection['sku'],
                     'name' => $selection['name'],
                     'price' => $this->getPriceByType($childrenProduct, 'final_price'),
-                    'availability' => $this->getStockItem($childrenProduct->getEntityId())->getIsInStock() ? self::IN_STOCK : self::OUT_OF_STOCK,
+                    'availability' => $stockItem ? $stockItem->getIsInStock() ? self::IN_STOCK : self::OUT_OF_STOCK : self::OUT_OF_STOCK,
                     'media' => $this->getProductMedia($childrenProduct),
                 ];
             }
