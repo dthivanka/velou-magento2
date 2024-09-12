@@ -27,6 +27,7 @@ use Velou\DataFeed\Logger\Logger;
 use Velou\DataFeed\Model\Log;
 use Velou\DataFeed\Model\RetryCountFactory as RetryCountFactory;
 use Velou\DataFeed\Model\RetryCount;
+use function PHPUnit\Framework\isNull;
 
 class Consumer
 {
@@ -181,16 +182,21 @@ class Consumer
                     $feedData ['related_products'] = $product->getRelatedProductIds();
                     if ($product->getTypeId() === Configurable::TYPE_CODE) {
                         $configurableProductAttributes = [];
+                        $feedDataConfigurableProductOptions = [];
                         $configurableProductOptions = $product->getTypeInstance()->getConfigurableOptions($product);
                         foreach ($configurableProductOptions as $configurableProductOption) {
                             foreach ($configurableProductOption as $optionValues) {
                                 $configurableProductAttributes [] = $optionValues['attribute_code'];
-                                $feedData ['configurable_product_options'][] = [
+                                $valueArr = [
                                     'attribute_code' => $optionValues['attribute_code'],
                                     'atrribute_label' => $optionValues['option_title'],
                                 ];
+                                if(!in_array($valueArr, $feedDataConfigurableProductOptions) ) {
+                                    $feedDataConfigurableProductOptions[] = $valueArr;
+                                }
                             }
                         }
+                        $feedData ['configurable_product_options'] = $feedDataConfigurableProductOptions;
                         $children = $product->getTypeInstance()->getUsedProducts($product);
                         $feedData ['skus'] = $this->getChildrenDetails($children, array_unique($configurableProductAttributes));
                     } else if ($product->getTypeId() === Grouped::TYPE_CODE) {
@@ -398,11 +404,10 @@ class Consumer
         foreach ($attributes as $attribute){
             $attribute = trim($attribute);
             $attributeObj = $product->getResource()->getAttribute($attribute);
-            if ($attributeObj) {
+            if ($attributeObj && $product->hasData($attribute)) {
                 $customAttribute = [];
-                $customAttribute['attribute_code'] = $attribute;
-                $customAttribute['attribute_label'] = $product->getResource()->getAttribute($attribute)->getFrontendLabel();
-                $customAttribute['value'] = $product->getResource()->getAttribute($attribute)->getFrontend()->getValue($product);
+                $customAttributeValue = $product->getResource()->getAttribute($attribute)->getFrontend()->getValue($product);
+                $customAttribute[$attribute] = is_object($customAttributeValue) ? $customAttributeValue->getText() : $customAttributeValue;
                 $customAttributes[] = $customAttribute;
             }
         }
