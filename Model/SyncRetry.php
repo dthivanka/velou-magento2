@@ -60,7 +60,7 @@ class SyncRetry
             foreach ($chunks as $chunk){
                 $entityIds = [];
                 foreach ($chunk as $item){
-                    $entityIds[] = $item->getEntityId();
+                    $entityIds[$item->getEntityId()] = $item->getStoreId();
                 }
                 $this->publisher->publish(self::TOPIC_NAME, $this->json->serialize($entityIds));
             }

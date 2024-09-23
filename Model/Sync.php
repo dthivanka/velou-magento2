@@ -14,6 +14,7 @@ use \Magento\Framework\Serialize\Serializer\Json;
 use \Magento\Catalog\Model\Product\Type;
 use \Magento\GroupedProduct\Model\Product\Type\Grouped;
 use \Magento\Downloadable\Model\Product\Type as Downloadable;
+use \Magento\Store\Model\StoreManagerInterface;
 use Velou\DataFeed\Model\Apiconnector\Rest;
 use Velou\DataFeed\Model\Feed\Catalog;
 
@@ -43,6 +44,8 @@ class Sync
      */
     private $json;
 
+    private $storeManager;
+
     /**
      * @param Rest $rest
      * @param Catalog $catalog
@@ -54,11 +57,13 @@ class Sync
         Catalog $catalog,
         PublisherInterface $publisher,
         Json $json,
+        StoreManagerInterface $storeManager
     ){
         $this->rest = $rest;
         $this->catalog = $catalog;
         $this->publisher = $publisher;
         $this->json = $json;
+        $this->storeManager = $storeManager;
     }
 
     /**
@@ -66,26 +71,22 @@ class Sync
      */
     public function process()
     {
-        $configProductData = $this->catalog->getProductCollectionData(Configurable::TYPE_CODE);
-        $simpleProductData = $this->catalog->getProductCollectionData(Type::DEFAULT_TYPE);
-        $bundleProductData = $this->catalog->getProductCollectionData(Type::TYPE_BUNDLE);
-        $groupProductData = $this->catalog->getProductCollectionData(Grouped::TYPE_CODE);
-        $virtualProductData = $this->catalog->getProductCollectionData(Type::TYPE_VIRTUAL);
-        $downloadableProductData = $this->catalog->getProductCollectionData(Downloadable::TYPE_DOWNLOADABLE);
-        $productData = array_merge(
-            $configProductData,
-            $simpleProductData,
-            $bundleProductData,
-            $groupProductData,
-            $virtualProductData,
-            $downloadableProductData
-        );
-        if ($productData) {
-            $chunks = array_chunk($productData,self::BATCH_SIZE);
-            foreach ($chunks as $chunk){
-                $this->publisher->publish(self::TOPIC_NAME, $this->json->serialize($chunk));
+        $stores = $this->storeManager->getStores();
+        foreach ($stores as $store){
+            $configProductData = $this->catalog->getProductCollectionData(Configurable::TYPE_CODE, $store);
+            $simpleProductData = $this->catalog->getProductCollectionData(Type::DEFAULT_TYPE, $store);
+            $bundleProductData = $this->catalog->getProductCollectionData(Type::TYPE_BUNDLE, $store);
+            $groupProductData = $this->catalog->getProductCollectionData(Grouped::TYPE_CODE, $store);
+            $virtualProductData = $this->catalog->getProductCollectionData(Type::TYPE_VIRTUAL, $store);
+            $downloadableProductData = $this->catalog->getProductCollectionData(Downloadable::TYPE_DOWNLOADABLE, $store);
+
+            $productData = $configProductData + $simpleProductData + $bundleProductData + $groupProductData + $virtualProductData + $downloadableProductData;
+            if ($productData) {
+                $chunks = array_chunk($productData,self::BATCH_SIZE,true);
+                foreach ($chunks as $chunk){
+                    $this->publisher->publish(self::TOPIC_NAME, $this->json->serialize($chunk));
+                }
             }
         }
-
     }
 }

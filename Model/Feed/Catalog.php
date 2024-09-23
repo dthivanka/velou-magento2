@@ -58,10 +58,18 @@ class Catalog
      * @param $type
      * @return array
      */
-    public function getProductCollectionData($type){
+    public function getProductCollectionData($type, $store){
         $productCollection = $this->productCollectionFactory->create();
         $productCollection->addAttributeToFilter('type_id', $type);
         $productCollection->addAttributeToFilter('status', 1);
-        return $productCollection->getAllIds();
+        $productCollection->addStoreFilter($store);
+        $allProductIds = $productCollection->getAllIds();
+        $returnData = [];
+        foreach ($allProductIds as $productId){
+            $returnData[$productId] = $store->getId();
+        }
+        \Magento\Framework\App\ObjectManager::getInstance()
+            ->get(\Psr\Log\LoggerInterface::class)->debug(print_r($returnData, true));
+        return $returnData;
     }
 }

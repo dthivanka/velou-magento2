@@ -22,6 +22,7 @@
         <column xsi:type="int" name="id" padding="7" unsigned="false" nullable="false" identity="true" comment="ID" />
         <column xsi:type="text" name="entity" comment="Entity"/>
         <column xsi:type="int" name="entity_id" padding="7" unsigned="false" nullable="false" comment="Entity ID"/>
+        <column xsi:type="int" name="store_id" comment="Store Id" />
         <column xsi:type="int" name="retry_count" padding="7" unsigned="false" nullable="false" comment="Retry Count"/>
         <constraint xsi:type="primary" referenceId="PRIMARY">
             <column name="id"/>

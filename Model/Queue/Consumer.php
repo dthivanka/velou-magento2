@@ -21,13 +21,13 @@ use \Magento\Framework\Serialize\Serializer\Json;
 use \Magento\Catalog\Model\Product\Option;
 use \Magento\Catalog\Model\Product\Type;
 use \Magento\Catalog\Model\Product\Action;
+use \Magento\Store\Model\StoreManagerInterface;
 use Velou\DataFeed\Model\Apiconnector\Rest;
 use Velou\DataFeed\Helper\Data as HelperData;
 use Velou\DataFeed\Logger\Logger;
 use Velou\DataFeed\Model\Log;
 use Velou\DataFeed\Model\RetryCountFactory as RetryCountFactory;
 use Velou\DataFeed\Model\RetryCount;
-use function PHPUnit\Framework\isNull;
 
 class Consumer
 {
@@ -103,6 +103,11 @@ class Consumer
     protected $retryCountFactory;
 
     /**
+     * @var StoreManagerInterface
+     */
+    protected $storeManager;
+
+    /**
      * @param Logger $logger
      * @param Rest $rest
      * @param Json $json
@@ -116,6 +121,7 @@ class Consumer
      * @param Option $customOptions
      * @param Action $productActionInstance
      * @param RetryCountFactory $retryCountFactory
+     * @param StoreManagerInterface $storeManager
      */
     public function __construct(
         Logger $logger,
@@ -131,6 +137,7 @@ class Consumer
         Option $customOptions,
         Action $productActionInstance,
         RetryCountFactory $retryCountFactory,
+        StoreManagerInterface $storeManager,
     )
     {
         $this->logger = $logger;
@@ -146,6 +153,7 @@ class Consumer
         $this->publisher = $publisher;
         $this->productActionInstance = $productActionInstance;
         $this->retryCountFactory = $retryCountFactory;
+        $this->storeManager = $storeManager;
     }
 
     /**
@@ -162,9 +170,12 @@ class Consumer
                 $this->deleteProduct($productsIds['delete']);
             } else {
                 $feed = [];
-                foreach ($productsIds as $productId) {
-                    $product = $this->productFactory->create()->load($productId);
-
+                foreach ($productsIds as $productId => $storeId) {
+                    if (isset($storeId)) {
+                        $product = $this->productFactory->create()->setStoreId($storeId)->load($productId);
+                    } else {
+                        $product = $this->productFactory->create()->load($productId);
+                    }
                     $feedData ['id'] = $productId;
                     $feedData ['url'] = $product->getProductUrl();
                     $feedData ['product_type'] = $product->getTypeId();
@@ -180,6 +191,11 @@ class Consumer
                     $feedData ['up_sells'] = $product->getUpSellProductIds();
                     $feedData ['cross_sells'] = $product->getCrossSellProductIds();
                     $feedData ['related_products'] = $product->getRelatedProductIds();
+                    if ($storeId) {
+                        $feedData ['store_id'] = [$storeId => $this->getStoreName($storeId)];
+                    } else {
+                        $feedData ['store_id'] = $this->getAllStoreIds();
+                    }
                     if ($product->getTypeId() === Configurable::TYPE_CODE) {
                         $configurableProductAttributes = [];
                         $feedDataConfigurableProductOptions = [];
@@ -259,7 +275,7 @@ class Consumer
                 //Publish the product ids to the queue for retry if service is down
                 if(!$status) {
                     //Update the product sync attributes
-                    foreach ($productsIds as $productId) {
+                    foreach ($productsIds as $productId => $storeId) {
                         $updateValues = [
                             'velou_last_sync_status' => 'Error',
                             'velou_last_sync_time' => date('Y-m-d H:i:s'),
@@ -270,12 +286,13 @@ class Consumer
                         $retryCount = $this->retryCountFactory->create();
                         $retryCount->setEntityId($productId);
                         $retryCount->setEntity(RetryCount::ENTITY_TYPE_PRODUCT);
+                        $retryCount->setStoreId($storeId);
                         $retryCount->setRetryCount($retryCount->getRetryCount() + 1);
                         $retryCount->save();
                     }
                 } else {
                     //Delete the product from retry table when sync is successful
-                    foreach ($productsIds as $productId) {
+                    foreach ($productsIds as $productId => $storeId) {
                         $this->retryCountFactory->create()->load($productId, 'entity_id')->delete();
                     }
                 }
@@ -535,5 +552,30 @@ class Consumer
     private function updateProductAttribute($productId,$updateValues)
     {
         $this->productActionInstance->updateAttributes([$productId], $updateValues, 0);
+    }
+
+    /**
+     * Get all store ids
+     * @return array
+     */
+    private function getAllStoreIds()
+    {
+        $stores = $this->storeManager->getStores();
+        $storeIds = [];
+        foreach ($stores as $store) {
+            $storeIds[$store->getId()] = $store->getName();
+        }
+        return $storeIds;
+    }
+
+    /**
+     * @param $storeId
+     * @return string
+     * @throws NoSuchEntityException
+     */
+    private function getStoreName($storeId)
+    {
+        $store = $this->storeManager->getStore($storeId);
+        return $store->getName();
     }
 }

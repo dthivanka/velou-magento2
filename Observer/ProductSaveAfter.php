@@ -41,7 +41,9 @@ class ProductSaveAfter implements ObserverInterface
     public function execute(Observer $observer)
     {
         $product = $observer->getEvent()->getProduct();
+        \Magento\Framework\App\ObjectManager::getInstance()
+            ->get(\Psr\Log\LoggerInterface::class)->debug($product->getStoreId());
         // Publish the product id to the product sync queue
-        $this->publisher->publish(self::TOPIC_NAME, $this->json->serialize([$product->getId()]));
+        $this->publisher->publish(self::TOPIC_NAME, $this->json->serialize([$product->getId() => $product->getStoreId()]));
     }
 }
