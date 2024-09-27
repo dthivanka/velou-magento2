@@ -192,9 +192,7 @@ class Consumer
                     $feedData ['cross_sells'] = $product->getCrossSellProductIds();
                     $feedData ['related_products'] = $product->getRelatedProductIds();
                     if ($storeId) {
-                        $feedData ['store_id'] = [$storeId => $this->getStoreName($storeId)];
-                    } else {
-                        $feedData ['store_id'] = $this->getAllStoreIds();
+                        $feedData ['store'] = $this->getStoreName($storeId);
                     }
                     if ($product->getTypeId() === Configurable::TYPE_CODE) {
                         $configurableProductAttributes = [];
