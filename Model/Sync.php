@@ -17,6 +17,7 @@ use \Magento\Downloadable\Model\Product\Type as Downloadable;
 use \Magento\Store\Model\StoreManagerInterface;
 use Velou\DataFeed\Model\Apiconnector\Rest;
 use Velou\DataFeed\Model\Feed\Catalog;
+use Velou\DataFeed\Logger\Logger;
 
 class Sync
 {
@@ -44,7 +45,15 @@ class Sync
      */
     private $json;
 
+    /**
+     * @var StoreManagerInterface
+     */
     private $storeManager;
+
+    /**
+     * @var Logger
+     */
+    private $logger;
 
     /**
      * @param Rest $rest
@@ -57,13 +66,15 @@ class Sync
         Catalog $catalog,
         PublisherInterface $publisher,
         Json $json,
-        StoreManagerInterface $storeManager
+        StoreManagerInterface $storeManager,
+        Logger $logger
     ){
         $this->rest = $rest;
         $this->catalog = $catalog;
         $this->publisher = $publisher;
         $this->json = $json;
         $this->storeManager = $storeManager;
+        $this->logger = $logger;
     }
 
     /**
@@ -81,6 +92,8 @@ class Sync
             $downloadableProductData = $this->catalog->getProductCollectionData(Downloadable::TYPE_DOWNLOADABLE, $store);
 
             $productData = $configProductData + $simpleProductData + $bundleProductData + $groupProductData + $virtualProductData + $downloadableProductData;
+            $this->logger->info('Product data count: '.count($productData));
+            $this->logger->info('Product data to sync: '.json_encode($productData));
             if ($productData) {
                 $chunks = array_chunk($productData,self::BATCH_SIZE,true);
                 foreach ($chunks as $chunk){

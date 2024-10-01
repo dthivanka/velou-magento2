@@ -262,7 +262,6 @@ class Consumer
                 }
                 //Post product details to Velou
                 $response = $this->rest->doPost($feed, '/products');
-                $this->logger->info(print_r($feed,true));
                 $this->logger->info($response);
                 $this->helperData->addLogMessage(
                     self::JOB_NAME_UPDATE,
