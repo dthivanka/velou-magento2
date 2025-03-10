@@ -279,6 +279,7 @@ class Consumer
                             'velou_last_sync_errors' => 'Invalid response from the server',
                         ];
                         $this->updateProductAttribute($productId, $updateValues);
+
                         //Save the product for retry
                         $retryCount = $this->retryCountFactory->create();
                         $retryCount->setEntityId($productId);
@@ -548,7 +549,11 @@ class Consumer
      */
     private function updateProductAttribute($productId,$updateValues)
     {
-        $this->productActionInstance->updateAttributes([$productId], $updateValues, 0);
+        try {
+            $this->productActionInstance->updateAttributes([$productId], $updateValues, 0);
+        } catch (\Exception $e) {
+            $this->logger->error($productId.' Error updating Velou sync attributes due to -'.$e->getMessage());
+        }
     }
 
     /**
